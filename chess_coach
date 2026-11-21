@@ -1,0 +1,703 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": []
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Celda 1: Configuración base (Drive, carpetas e instalación de librerías) Ejecuta esta primera celda para conectar Google Drive, crear tus carpetas, instalar chess y descargar Stockfish con los permisos correctos. (Nota: Al ser un Colab nuevo, debes correr esta celda una vez por sesión)."
+      ],
+      "metadata": {
+        "id": "VRU6tOsj3phf"
+      }
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 1,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "6qkVokQN29fL",
+        "outputId": "c16aa779-20fb-4f2f-e93d-57d8547c7edc"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Mounted at /content/drive\n",
+            "  Installing build dependencies ... \u001b[?25l\u001b[?25hdone\n",
+            "  Getting requirements to build wheel ... \u001b[?25l\u001b[?25hdone\n",
+            "  Preparing metadata (pyproject.toml) ... \u001b[?25l\u001b[?25hdone\n",
+            "  Building wheel for chess (pyproject.toml) ... \u001b[?25l\u001b[?25hdone\n",
+            "✅ Entorno listo, Drive conectado y Stockfish instalado.\n"
+          ]
+        }
+      ],
+      "source": [
+        "from google.colab import drive\n",
+        "drive.mount('/content/drive')\n",
+        "\n",
+        "import os\n",
+        "import sys\n",
+        "\n",
+        "BASE = '/content/drive/MyDrive/chess_coach'\n",
+        "os.makedirs(f'{BASE}/data/pgn_games', exist_ok=True)\n",
+        "os.makedirs(f'{BASE}/engines', exist_ok=True)\n",
+        "\n",
+        "if BASE not in sys.path:\n",
+        "    sys.path.append(BASE)\n",
+        "\n",
+        "# Instalar librería de ajedrez y descargar Stockfish\n",
+        "!pip install chess -q\n",
+        "!wget -q -O /content/stockfish.tar.gz https://github.com/official-stockfish/Stockfish/releases/latest/download/stockfish-linux-x86-64-universal.tar.gz\n",
+        "!tar -xzf /content/stockfish.tar.gz -C /content\n",
+        "!chmod +x /content/stockfish/stockfish-linux-x86-64-universal\n",
+        "\n",
+        "print(\"✅ Entorno listo, Drive conectado y Stockfish instalado.\")"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "\\Celda 2: Archivo de idiomas (translations.py)\n",
+        " Crea el diccionario de textos en español e inglés."
+      ],
+      "metadata": {
+        "id": "5X7RSKMr4cTZ"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "%%writefile /content/drive/MyDrive/chess_coach/translations.py\n",
+        "\n",
+        "TEXT = {\n",
+        "    \"en\": {\n",
+        "        \"welcome\": \"Welcome to the AI Chess Club Coach!\",\n",
+        "        \"choose_option\": \"Please choose an option:\",\n",
+        "        \"menu_1\": \"1. Personalized Training Plan\",\n",
+        "        \"menu_2\": \"2. Opening Recommender\",\n",
+        "        \"menu_3\": \"3. Blunder Tracker\",\n",
+        "        \"menu_0\": \"0. Exit\",\n",
+        "        \"invalid\": \"Invalid choice. Please try again.\",\n",
+        "        \"ask_elo\": \"What is your current Elo rating? \",\n",
+        "        \"ask_style\": \"Preferred style (1=Aggressive, 2=Defensive, 3=Strategic): \",\n",
+        "        \"ask_time\": \"How many days per week can you study? \",\n",
+        "        \"blunder_found\": \"Blunder detected on move {move_num} ({move})! Loss of evaluation: {drop}\",\n",
+        "    },\n",
+        "    \"es\": {\n",
+        "        \"welcome\": \"¡Bienvenido al Entrenador de Club de Ajedrez con IA!\",\n",
+        "        \"choose_option\": \"Por favor, elige una opción:\",\n",
+        "        \"menu_1\": \"1. Plan de Entrenamiento Personalizado\",\n",
+        "        \"menu_2\": \"2. Recomendador de Aperturas\",\n",
+        "        \"menu_3\": \"3. Rastreador de Errores Graves\",\n",
+        "        \"menu_0\": \"0. Salir\",\n",
+        "        \"invalid\": \"Opción no válida. Por favor, inténtalo de nuevo.\",\n",
+        "        \"ask_elo\": \"¿Cuál es tu Elo actual? \",\n",
+        "        \"ask_style\": \"Estilo preferido (1=Agresivo, 2=Defensivo, 3=Estratégico): \",\n",
+        "        \"ask_time\": \"¿Cuántos días a la semana puedes estudiar? \",\n",
+        "        \"blunder_found\": \"¡Error grave detectado en la jugada {move_num} ({move})! Pérdida de evaluación: {drop}\",\n",
+        "    }\n",
+        "}"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "SiUfwCyE4dI7",
+        "outputId": "6cfebff8-f4bb-4044-cc6a-d59543448f64"
+      },
+      "execution_count": 4,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Overwriting /content/drive/MyDrive/chess_coach/translations.py\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        ":Celda 3: Planificador de entrenamiento (training_planner.py) Crea el módulo que genera y guarda el calendario de estudio en JSON."
+      ],
+      "metadata": {
+        "id": "nuVg3X_v5a3b"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "%%writefile /content/drive/MyDrive/chess_coach/training_planner.py\n",
+        "\n",
+        "import json\n",
+        "import os\n",
+        "from datetime import date, timedelta\n",
+        "\n",
+        "MODULES_BY_ELO = {\n",
+        "    \"beginner\":     [\"Tácticas Básicas\", \"Patrones de Mate en 1\", \"Reglas y Notación\"],\n",
+        "    \"intermediate\": [\"Tácticas Intermedias\", \"Finales de Peones\", \"Aperturas Básicas\"],\n",
+        "    \"advanced\":     [\"Principios de Finales\", \"Estructuras de Peones\", \"Planificación Estratégica\"],\n",
+        "}\n",
+        "\n",
+        "STYLE_EXTRA = {\n",
+        "    \"1\": \"Estudio de sacrificios y ataques al rey\",\n",
+        "    \"2\": \"Estudio de fortalezas y defensa pasiva\",\n",
+        "    \"3\": \"Estudio de planes a largo plazo\",\n",
+        "}\n",
+        "\n",
+        "def get_level(elo: int) -> str:\n",
+        "    if elo < 1000:\n",
+        "        return \"beginner\"\n",
+        "    elif elo < 1500:\n",
+        "        return \"intermediate\"\n",
+        "    else:\n",
+        "        return \"advanced\"\n",
+        "\n",
+        "def generate_schedule(elo: int, style: str, days_per_week: int) -> list:\n",
+        "    level = get_level(elo)\n",
+        "    modules = MODULES_BY_ELO[level] + [STYLE_EXTRA.get(style, \"\")]\n",
+        "    schedule = []\n",
+        "    today = date.today()\n",
+        "    for i in range(days_per_week * 4):\n",
+        "        day = today + timedelta(days=i)\n",
+        "        module = modules[i % len(modules)]\n",
+        "        schedule.append({\n",
+        "            \"date\": str(day),\n",
+        "            \"module\": module,\n",
+        "            \"completed\": False\n",
+        "        })\n",
+        "    return schedule\n",
+        "\n",
+        "def save_progress(schedule: list, path: str):\n",
+        "    with open(path, \"w\", encoding=\"utf-8\") as f:\n",
+        "        json.dump(schedule, f, ensure_ascii=False, indent=2)\n",
+        "\n",
+        "def load_progress(path: str) -> list:\n",
+        "    if os.path.exists(path):\n",
+        "        with open(path, \"r\", encoding=\"utf-8\") as f:\n",
+        "            return json.load(f)\n",
+        "    return []"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "Hv-QxZ-B5bm9",
+        "outputId": "d6ade1b4-6d51-46a3-c2db-d7a0d4d6a50f"
+      },
+      "execution_count": 5,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Overwriting /content/drive/MyDrive/chess_coach/training_planner.py\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Celda 4: Recomendador de aperturas (opening_recommender.py) Crea el módulo interactivo para entrenar líneas de apertura."
+      ],
+      "metadata": {
+        "id": "2IJPa2l46U8h"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "%%writefile /content/drive/MyDrive/chess_coach/opening_recommender.py\n",
+        "\n",
+        "import chess\n",
+        "\n",
+        "OPENINGS = {\n",
+        "    \"sharp\": {\n",
+        "        \"name\": \"Sicilian Defense\",\n",
+        "        \"moves\": [\"e4\", \"c5\", \"Nf3\", \"d6\", \"d4\", \"cxd4\", \"Nxd4\", \"Nf6\"]\n",
+        "    },\n",
+        "    \"controlled\": {\n",
+        "        \"name\": \"Queen's Gambit\",\n",
+        "        \"moves\": [\"d4\", \"d5\", \"c4\", \"e6\", \"Nc3\", \"Nf6\", \"Nf3\", \"Be7\"]\n",
+        "    },\n",
+        "    \"balanced\": {\n",
+        "        \"name\": \"Italian Game\",\n",
+        "        \"moves\": [\"e4\", \"e5\", \"Nf3\", \"Nc6\", \"Bc4\", \"Bc5\", \"c3\", \"Nf6\"]\n",
+        "    },\n",
+        "}\n",
+        "\n",
+        "def recommend(preference: str) -> dict:\n",
+        "    return OPENINGS.get(preference, OPENINGS[\"balanced\"])\n",
+        "\n",
+        "def train_opening(opening: dict):\n",
+        "    board = chess.Board()\n",
+        "    print(f\"\\nEntrenando: {opening['name']}\")\n",
+        "    print(\"Escribe el movimiento en notación SAN (ej: e4, Nf3)\\n\")\n",
+        "\n",
+        "    for i, correct_move in enumerate(opening[\"moves\"]):\n",
+        "        print(board)\n",
+        "        turn = \"Blancas\" if i % 2 == 0 else \"Negras\"\n",
+        "        user_move = input(f\"\\nJugada {i+1} ({turn}): \")\n",
+        "\n",
+        "        if user_move.strip() == correct_move:\n",
+        "            print(\"✅ ¡Correcto!\\n\")\n",
+        "        else:\n",
+        "            print(f\"❌ Se esperaba: {correct_move}\\n\")\n",
+        "\n",
+        "        board.push_san(correct_move)\n",
+        "\n",
+        "    print(\"Fin del entrenamiento de apertura.\")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "VBs1XIaO6UXt",
+        "outputId": "32f56122-b5ce-4f25-d5d6-a9fc54f1ad78"
+      },
+      "execution_count": 6,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Overwriting /content/drive/MyDrive/chess_coach/opening_recommender.py\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Celda 5: Rastreador de errores graves (blunder_tracker.py) Ya incluye la ruta corregida de Stockfish (/content/stockfish/stockfish-linux-x86-64-universal) y las funciones para leer o detectar archivos .pgn en Drive."
+      ],
+      "metadata": {
+        "id": "mP-TTk4h74G5"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "%%writefile /content/drive/MyDrive/chess_coach/blunder_tracker.py\n",
+        "\n",
+        "import chess\n",
+        "import chess.pgn\n",
+        "import chess.engine\n",
+        "import io\n",
+        "import os\n",
+        "import glob\n",
+        "\n",
+        "STOCKFISH_PATH = \"/content/stockfish/stockfish-linux-x86-64-universal\"\n",
+        "BLUNDER_THRESHOLD = 2.0\n",
+        "\n",
+        "def analyze_pgn(pgn_text: str) -> list:\n",
+        "    game = chess.pgn.read_game(io.StringIO(pgn_text))\n",
+        "    if game is None:\n",
+        "        return []\n",
+        "    board = game.board()\n",
+        "    blunders = []\n",
+        "\n",
+        "    with chess.engine.SimpleEngine.popen_uci(STOCKFISH_PATH) as engine:\n",
+        "        prev_score = None\n",
+        "        move_num = 1\n",
+        "\n",
+        "        for move in game.mainline_moves():\n",
+        "            board.push(move)\n",
+        "            info = engine.analyse(board, chess.engine.Limit(depth=12))\n",
+        "            score = info[\"score\"].white().score(mate_score=10000)\n",
+        "\n",
+        "            if score is not None and prev_score is not None:\n",
+        "                drop = abs(prev_score - score) / 100.0\n",
+        "                if drop >= BLUNDER_THRESHOLD:\n",
+        "                    blunders.append({\n",
+        "                        \"move_num\": move_num,\n",
+        "                        \"move\": board.peek().uci(),\n",
+        "                        \"drop\": round(drop, 2)\n",
+        "                    })\n",
+        "\n",
+        "            prev_score = score\n",
+        "            if board.turn == chess.WHITE:\n",
+        "                move_num += 1\n",
+        "\n",
+        "    return blunders\n",
+        "\n",
+        "def read_pgn_from_file(filepath: str) -> str:\n",
+        "    if not os.path.exists(filepath):\n",
+        "        raise FileNotFoundError(f\"No se encontró el archivo: {filepath}\")\n",
+        "    with open(filepath, \"r\", encoding=\"utf-8\") as f:\n",
+        "        return f.read()\n",
+        "\n",
+        "def find_latest_pgn(folder: str) -> str:\n",
+        "    archivos = glob.glob(os.path.join(folder, \"*.pgn\"))\n",
+        "    if not archivos:\n",
+        "        raise FileNotFoundError(f\"No se encontró ningún archivo .pgn en: {folder}\")\n",
+        "    return max(archivos, key=os.path.getmtime)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "7rwSQ6q574xD",
+        "outputId": "3d963986-d49b-4c5f-c62d-458c9e97dc99"
+      },
+      "execution_count": 7,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Overwriting /content/drive/MyDrive/chess_coach/blunder_tracker.py\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Celda 6: Programa principal (main.py) Crea el menú principal que conecta todos los módulos anteriores."
+      ],
+      "metadata": {
+        "id": "8mSn2zlH9xPM"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "%%writefile /content/drive/MyDrive/chess_coach/main.py\n",
+        "\n",
+        "import os\n",
+        "from translations import TEXT\n",
+        "import training_planner\n",
+        "import opening_recommender\n",
+        "import blunder_tracker\n",
+        "\n",
+        "STOCKFISH_PATH = \"/content/stockfish/stockfish-linux-x86-64-universal\"\n",
+        "PGN_FOLDER = \"/content/drive/MyDrive/chess_coach/data/pgn_games\"\n",
+        "\n",
+        "def main():\n",
+        "    print(\"Select Language / Seleccione el Idioma:\")\n",
+        "    print(\"1. English\")\n",
+        "    print(\"2. Español\")\n",
+        "    lang = \"es\" if input(\"> \") == \"2\" else \"en\"\n",
+        "    t = TEXT[lang]\n",
+        "\n",
+        "    print(\"\\n\" + \"=\" * 40)\n",
+        "    print(t[\"welcome\"])\n",
+        "    print(\"=\" * 40)\n",
+        "\n",
+        "    while True:\n",
+        "        print(f\"\\n{t['choose_option']}\")\n",
+        "        print(t[\"menu_1\"])\n",
+        "        print(t[\"menu_2\"])\n",
+        "        print(t[\"menu_3\"])\n",
+        "        print(t[\"menu_0\"])\n",
+        "        choice = input(\"> \")\n",
+        "\n",
+        "        if choice == \"1\":\n",
+        "            elo = int(input(t[\"ask_elo\"]))\n",
+        "            style = input(t[\"ask_style\"])\n",
+        "            days = int(input(t[\"ask_time\"]))\n",
+        "            plan = training_planner.generate_schedule(elo, style, days)\n",
+        "            for entry in plan[:7]:\n",
+        "                print(f\"{entry['date']} → {entry['module']}\")\n",
+        "            path = \"/content/drive/MyDrive/chess_coach/data/progress.json\"\n",
+        "            training_planner.save_progress(plan, path)\n",
+        "            print(\"\\nPlan guardado en:\", path)\n",
+        "\n",
+        "        elif choice == \"2\":\n",
+        "            pref = input(\"1=Afiladas 2=Controladas 3=Equilibradas: \")\n",
+        "            key = {\"1\": \"sharp\", \"2\": \"controlled\", \"3\": \"balanced\"}.get(pref, \"balanced\")\n",
+        "            opening = opening_recommender.recommend(key)\n",
+        "            opening_recommender.train_opening(opening)\n",
+        "\n",
+        "        elif choice == \"3\":\n",
+        "            if not os.path.exists(STOCKFISH_PATH):\n",
+        "                print(\"\\n⚠️ Stockfish no está disponible. Ejecuta primero la Celda 1.\\n\")\n",
+        "                continue\n",
+        "\n",
+        "            print(\"\\n¿Cómo quieres dar el PGN?\")\n",
+        "            print(\"1. Pegar el texto directamente\")\n",
+        "            print(\"2. Detectar automáticamente el archivo en Drive\")\n",
+        "            modo = input(\"> \")\n",
+        "\n",
+        "            if modo == \"2\":\n",
+        "                try:\n",
+        "                    ruta = blunder_tracker.find_latest_pgn(PGN_FOLDER)\n",
+        "                    print(f\"Archivo detectado: {ruta}\")\n",
+        "                    pgn_text = blunder_tracker.read_pgn_from_file(ruta)\n",
+        "                except FileNotFoundError as e:\n",
+        "                    print(f\"⚠️ {e}\")\n",
+        "                    continue\n",
+        "            else:\n",
+        "                pgn_text = input(\"Pega tu PGN:\\n\")\n",
+        "\n",
+        "            blunders = blunder_tracker.analyze_pgn(pgn_text)\n",
+        "            if blunders:\n",
+        "                for b in blunders:\n",
+        "                    print(t[\"blunder_found\"].format(\n",
+        "                        move_num=b[\"move_num\"],\n",
+        "                        move=b[\"move\"],\n",
+        "                        drop=b[\"drop\"]\n",
+        "                    ))\n",
+        "            else:\n",
+        "                print(\"No se detectaron errores graves.\" if lang == \"es\" else \"No blunders detected.\")\n",
+        "\n",
+        "        elif choice == \"0\":\n",
+        "            break\n",
+        "        else:\n",
+        "            print(t[\"invalid\"])\n",
+        "\n",
+        "if __name__ == \"__main__\":\n",
+        "    main()"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "EOKtqi3X9xwi",
+        "outputId": "d2466ae5-a8b0-494d-cfd7-229dc2c69df3"
+      },
+      "execution_count": 9,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Overwriting /content/drive/MyDrive/chess_coach/main.py\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Celda 7: Ejecutar todo el programa\n",
+        "Corre esta celda final para iniciar tu aplicación completa:"
+      ],
+      "metadata": {
+        "id": "niX_DsW7_pkA"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!python /content/drive/MyDrive/chess_coach/main.py"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "7X3GpGzJ_qH7",
+        "outputId": "b3ba9f61-efd2-4c0f-9729-bfd845933a3f"
+      },
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Select Language / Seleccione el Idioma:\n",
+            "1. English\n",
+            "2. Español\n",
+            "> 1\n",
+            "\n",
+            "========================================\n",
+            "Welcome to the AI Chess Club Coach!\n",
+            "========================================\n",
+            "\n",
+            "Please choose an option:\n",
+            "1. Personalized Training Plan\n",
+            "2. Opening Recommender\n",
+            "3. Blunder Tracker\n",
+            "0. Exit\n",
+            "> 1\n",
+            "What is your current Elo rating? 1100\n",
+            "Preferred style (1=Aggressive, 2=Defensive, 3=Strategic): 3\n",
+            "How many days per week can you study? 5\n",
+            "2026-11-21 → Tácticas Intermedias\n",
+            "2026-11-22 → Finales de Peones\n",
+            "2026-11-23 → Aperturas Básicas\n",
+            "2026-11-24 → Estudio de planes a largo plazo\n",
+            "2026-11-25 → Tácticas Intermedias\n",
+            "2026-11-26 → Finales de Peones\n",
+            "2026-11-27 → Aperturas Básicas\n",
+            "\n",
+            "Plan guardado en: /content/drive/MyDrive/chess_coach/data/progress.json\n",
+            "\n",
+            "Please choose an option:\n",
+            "1. Personalized Training Plan\n",
+            "2. Opening Recommender\n",
+            "3. Blunder Tracker\n",
+            "0. Exit\n",
+            "> 2\n",
+            "1=Afiladas 2=Controladas 3=Equilibradas: 2\n",
+            "\n",
+            "Entrenando: Queen's Gambit\n",
+            "Escribe el movimiento en notación SAN (ej: e4, Nf3)\n",
+            "\n",
+            "r n b q k b n r\n",
+            "p p p p p p p p\n",
+            ". . . . . . . .\n",
+            ". . . . . . . .\n",
+            ". . . . . . . .\n",
+            ". . . . . . . .\n",
+            "P P P P P P P P\n",
+            "R N B Q K B N R\n",
+            "\n",
+            "Jugada 1 (Blancas): e4\n",
+            "❌ Se esperaba: d4\n",
+            "\n",
+            "r n b q k b n r\n",
+            "p p p p p p p p\n",
+            ". . . . . . . .\n",
+            ". . . . . . . .\n",
+            ". . . P . . . .\n",
+            ". . . . . . . .\n",
+            "P P P . P P P P\n",
+            "R N B Q K B N R\n",
+            "\n",
+            "Jugada 2 (Negras): e4\n",
+            "❌ Se esperaba: d5\n",
+            "\n",
+            "r n b q k b n r\n",
+            "p p p . p p p p\n",
+            ". . . . . . . .\n",
+            ". . . p . . . .\n",
+            ". . . P . . . .\n",
+            ". . . . . . . .\n",
+            "P P P . P P P P\n",
+            "R N B Q K B N R\n",
+            "\n",
+            "Jugada 3 (Blancas): e5\n",
+            "❌ Se esperaba: c4\n",
+            "\n",
+            "r n b q k b n r\n",
+            "p p p . p p p p\n",
+            ". . . . . . . .\n",
+            ". . . p . . . .\n",
+            ". . P P . . . .\n",
+            ". . . . . . . .\n",
+            "P P . . P P P P\n",
+            "R N B Q K B N R\n",
+            "\n",
+            "Jugada 4 (Negras): c5\n",
+            "❌ Se esperaba: e6\n",
+            "\n",
+            "r n b q k b n r\n",
+            "p p p . . p p p\n",
+            ". . . . p . . .\n",
+            ". . . p . . . .\n",
+            ". . P P . . . .\n",
+            ". . . . . . . .\n",
+            "P P . . P P P P\n",
+            "R N B Q K B N R\n",
+            "\n",
+            "Jugada 5 (Blancas): Nf5\n",
+            "❌ Se esperaba: Nc3\n",
+            "\n",
+            "r n b q k b n r\n",
+            "p p p . . p p p\n",
+            ". . . . p . . .\n",
+            ". . . p . . . .\n",
+            ". . P P . . . .\n",
+            ". . N . . . . .\n",
+            "P P . . P P P P\n",
+            "R . B Q K B N R\n",
+            "\n",
+            "Jugada 6 (Negras): Nc4\n",
+            "❌ Se esperaba: Nf6\n",
+            "\n",
+            "r n b q k b . r\n",
+            "p p p . . p p p\n",
+            ". . . . p n . .\n",
+            ". . . p . . . .\n",
+            ". . P P . . . .\n",
+            ". . N . . . . .\n",
+            "P P . . P P P P\n",
+            "R . B Q K B N R\n",
+            "\n",
+            "Jugada 7 (Blancas): d4\n",
+            "❌ Se esperaba: Nf3\n",
+            "\n",
+            "r n b q k b . r\n",
+            "p p p . . p p p\n",
+            ". . . . p n . .\n",
+            ". . . p . . . .\n",
+            ". . P P . . . .\n",
+            ". . N . . N . .\n",
+            "P P . . P P P P\n",
+            "R . B Q K B . R\n",
+            "\n",
+            "Jugada 8 (Negras): e4\n",
+            "❌ Se esperaba: Be7\n",
+            "\n",
+            "Fin del entrenamiento de apertura.\n",
+            "\n",
+            "Please choose an option:\n",
+            "1. Personalized Training Plan\n",
+            "2. Opening Recommender\n",
+            "3. Blunder Tracker\n",
+            "0. Exit\n",
+            "> 3\n",
+            "\n",
+            "¿Cómo quieres dar el PGN?\n",
+            "1. Pegar el texto directamente\n",
+            "2. Detectar automáticamente el archivo en Drive\n",
+            "> 2\n",
+            "Archivo detectado: /content/drive/MyDrive/chess_coach/data/pgn_games/Perugoalie_vs_Jaggi1729_2026.08.05.pgn\n",
+            "Blunder detected on move 16 (b2b3)! Loss of evaluation: 2.03\n",
+            "Blunder detected on move 18 (d5d4)! Loss of evaluation: 4.79\n",
+            "Blunder detected on move 19 (f4e3)! Loss of evaluation: 7.25\n",
+            "Blunder detected on move 20 (c7c5)! Loss of evaluation: 2.05\n",
+            "Blunder detected on move 23 (c4d5)! Loss of evaluation: 2.38\n",
+            "Blunder detected on move 26 (a7a2)! Loss of evaluation: 2.78\n",
+            "Blunder detected on move 27 (a2b3)! Loss of evaluation: 4.62\n",
+            "Blunder detected on move 28 (d1d2)! Loss of evaluation: 5.06\n",
+            "Blunder detected on move 29 (f4f3)! Loss of evaluation: 4.33\n",
+            "Blunder detected on move 34 (e3d5)! Loss of evaluation: 3.22\n",
+            "Blunder detected on move 37 (f7g7)! Loss of evaluation: 3.43\n",
+            "Blunder detected on move 43 (d8h8)! Loss of evaluation: 6.15\n",
+            "Blunder detected on move 46 (g3f4)! Loss of evaluation: 6.77\n",
+            "Blunder detected on move 51 (f5f6)! Loss of evaluation: 91.05\n",
+            "Blunder detected on move 51 (d1a1)! Loss of evaluation: 90.46\n",
+            "Blunder detected on move 52 (f6g5)! Loss of evaluation: 90.47\n",
+            "Blunder detected on move 52 (a1a5)! Loss of evaluation: 90.34\n",
+            "Blunder detected on move 53 (g5f6)! Loss of evaluation: 90.35\n",
+            "Blunder detected on move 53 (a5c3)! Loss of evaluation: 89.9\n",
+            "Blunder detected on move 54 (f6e7)! Loss of evaluation: 3.29\n",
+            "Blunder detected on move 54 (c3c7)! Loss of evaluation: 86.58\n",
+            "Blunder detected on move 55 (d8d6)! Loss of evaluation: 89.39\n",
+            "Blunder detected on move 56 (f6g5)! Loss of evaluation: 89.4\n",
+            "Blunder detected on move 56 (d6g6)! Loss of evaluation: 85.83\n",
+            "Blunder detected on move 57 (g5h5)! Loss of evaluation: 85.86\n",
+            "\n",
+            "Please choose an option:\n",
+            "1. Personalized Training Plan\n",
+            "2. Opening Recommender\n",
+            "3. Blunder Tracker\n",
+            "0. Exit\n",
+            "> "
+          ]
+        }
+      ]
+    }
+  ]
+}
